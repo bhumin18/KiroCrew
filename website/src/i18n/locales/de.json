@@ -5690,7 +5690,6 @@
         },
         "pagesProvider": {
           "developer": "Entwickler",
-          "hooks": "Hooks",
           "kirocrew_agents": "{{productName}}-Agenten",
           "logs": "Protokolle",
           "pages": "Seiten",
@@ -7912,6 +7911,9 @@
       "confirm_discard": "Zeichnung verwerfen",
       "already_attached": "Angehängt — Canvas bearbeiten, um erneut zu skizzieren",
       "load_failed": "Skizzenblock konnte nicht geladen werden – Verbindung prüfen und erneut öffnen"
+    },
+    "pinSurfaceButton": {
+      "pin_limit_reached": "Maximal {{n}} Anheftungen in der Seitenleiste - zuerst eine lösen"
     }
   },
   "hooks": {

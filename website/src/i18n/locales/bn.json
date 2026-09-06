@@ -5690,7 +5690,6 @@
         },
         "pagesProvider": {
           "developer": "ডেভেলপার",
-          "hooks": "Hooks",
           "kirocrew_agents": "{{productName}} এজেন্ট",
           "logs": "লগ",
           "pages": "পেজ",
@@ -7912,6 +7911,9 @@
       "confirm_discard": "আঁকা বাতিল করুন",
       "already_attached": "সংযুক্ত — আবার স্কেচ করতে ক্যানভাস সম্পাদনা করুন",
       "load_failed": "স্কেচ প্যাড লোড করা যায়নি — সংযোগ পরীক্ষা করে আবার খুলুন"
+    },
+    "pinSurfaceButton": {
+      "pin_limit_reached": "সাইডবারে সর্বোচ্চ {{n}}টি পিন - প্রথমে একটি আনপিন করুন"
     }
   },
   "hooks": {

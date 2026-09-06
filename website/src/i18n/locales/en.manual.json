@@ -1643,7 +1643,6 @@
         },
         "pagesProvider": {
           "developer": "Developer",
-          "hooks": "Hooks",
           "kirocrew_agents": "{{productName}} Agents",
           "logs": "Logs",
           "pages": "Pages",
@@ -2774,6 +2773,9 @@
     "pendingQuestionCard": {
       "answer_failed": "Couldn’t send your answer. The agent is still waiting, so try again.",
       "dismiss_failed": "Couldn’t dismiss this question. Try again."
+    },
+    "pinSurfaceButton": {
+      "pin_limit_reached": "Maximum {{n}} sidebar pins - unpin one first"
     }
   },
   "hooks": {
