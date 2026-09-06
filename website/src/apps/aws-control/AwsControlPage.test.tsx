@@ -30,6 +30,7 @@ vi.mock('./api', async () => {
       reconnectPlan: vi.fn(),
       availableProfiles: vi.fn(),
       registerProfiles: vi.fn(),
+      unregisterProfiles: vi.fn(),
       iamPolicy: vi.fn(),
       drive: vi.fn(),
       driveBootstrapPreview: vi.fn(),
@@ -749,6 +750,130 @@ describe('accounts pane', () => {
     fireEvent.click(screen.getByTestId('rail-accounts'))
     await screen.findByTestId('accounts-list')
     expect(screen.queryByTestId('orphan-consent')).toBeNull()
+  })
+})
+
+describe('remove account', () => {
+  async function openAccountsPane() {
+    renderWithProviders(<AwsControlPage />)
+    await screen.findByTestId('drive-section')
+    fireEvent.click(screen.getByTestId('rail-accounts'))
+    await screen.findByTestId('accounts-pane')
+  }
+
+  async function openRemoveOn(row: HTMLElement) {
+    fireEvent.click(within(row).getByTestId('account-more'))
+    fireEvent.click(await screen.findByTestId('account-remove'))
+  }
+
+  it('every row offers removal from a menu that does not select the account', async () => {
+    await openAccountsPane()
+    const rows = await screen.findAllByTestId('account-card')
+    // The menu sits BESIDE the select button, so opening it must not switch
+    // the app onto that account (which would also jump to Files).
+    const workRow = rows[1].parentElement!
+    // The menu item carries the safety fact before anything is clicked.
+    fireEvent.click(within(workRow).getByTestId('account-more'))
+    expect(await screen.findByTestId('account-remove-hint')).toHaveTextContent(
+      i18nT('apps.awsControl.page.remove_account_hint'),
+    )
+    fireEvent.click(screen.getByTestId('account-remove'))
+    expect(await screen.findByTestId('account-remove-confirm')).toBeTruthy()
+    expect(screen.getByTestId('accounts-pane')).toBeTruthy()
+    expect(rows[1].getAttribute('data-current')).toBeNull()
+    // The strip names the account and says the removal is registry-only.
+    expect(screen.getByTestId('account-remove-confirm')).toHaveTextContent(
+      i18nT('apps.awsControl.page.remove_account_confirm', { name: 'work' }),
+    )
+    // Nothing was sent yet: the menu item only opens the confirm.
+    expect(awsControlApi.unregisterProfiles).not.toHaveBeenCalled()
+  })
+
+  it('confirming posts every key of that account and refetches the list', async () => {
+    vi.mocked(awsControlApi.unregisterProfiles).mockResolvedValue({
+      removed: 2, skipped: 0, consentWithdrawn: ['s3'],
+    })
+    vi.mocked(awsControlApi.accounts).mockResolvedValue(accountsPayload({
+      accounts: [
+        {
+          ...accountsPayload().accounts[0],
+          profiles: [
+            accountsPayload().accounts[0].profiles[0],
+            { ...accountsPayload().accounts[0].profiles[0], name: 'personal-admin', default: false },
+          ],
+        },
+        accountsPayload().accounts[1],
+      ],
+    }))
+    await openAccountsPane()
+    expect(awsControlApi.accounts).toHaveBeenCalledTimes(1)
+
+    const rows = await screen.findAllByTestId('account-card')
+    await openRemoveOn(rows[0].parentElement!)
+    fireEvent.click(screen.getByTestId('account-remove-confirm-action'))
+
+    await waitFor(() => {
+      expect(awsControlApi.unregisterProfiles).toHaveBeenCalledWith(['personal', 'personal-admin'])
+    })
+    // The registry changed, so both views of it refetch and the strip closes.
+    await waitFor(() => {
+      expect(awsControlApi.accounts).toHaveBeenCalledTimes(2)
+    })
+    await waitFor(() => {
+      expect(screen.queryByTestId('account-remove-confirm')).toBeNull()
+    })
+  })
+
+  it('cancel closes the strip and sends nothing', async () => {
+    await openAccountsPane()
+    const rows = await screen.findAllByTestId('account-card')
+    await openRemoveOn(rows[0].parentElement!)
+    fireEvent.click(screen.getByTestId('account-remove-confirm-cancel'))
+    expect(screen.queryByTestId('account-remove-confirm')).toBeNull()
+    expect(awsControlApi.unregisterProfiles).not.toHaveBeenCalled()
+  })
+
+  it('a refused removal stays on the strip as a notice, never silently', async () => {
+    vi.mocked(awsControlApi.unregisterProfiles).mockRejectedValue(
+      new AwsControlError('unknown_profile', 404),
+    )
+    await openAccountsPane()
+    const rows = await screen.findAllByTestId('account-card')
+    await openRemoveOn(rows[0].parentElement!)
+    fireEvent.click(screen.getByTestId('account-remove-confirm-action'))
+
+    const notice = await screen.findByTestId('account-remove-confirm-error')
+    expect(notice).toHaveTextContent(i18nT('apps.awsControl.page.remove_account_error'))
+    // The strip is the only place the outcome renders, so it stays open.
+    expect(screen.getByTestId('account-remove-confirm')).toBeTruthy()
+  })
+
+  it('the unresolved row names the keys it will forget, since it has no account name', async () => {
+    vi.mocked(awsControlApi.accounts).mockResolvedValue(accountsPayload({
+      accounts: [
+        accountsPayload().accounts[0],
+        {
+          account: '',
+          name: '',
+          health: 'unknown',
+          profiles: [{
+            name: 'stale-key', region: 'us-east-1', kind: 'other', identityOk: false,
+            account: '', arn: '', detail: 'token expired', default: false,
+          }],
+          summary: { storage: null, sites: null, tasks: null, costMonthToDate: null },
+        },
+      ],
+    }))
+    await openAccountsPane()
+    const rows = await screen.findAllByTestId('account-card')
+    await openRemoveOn(rows[1].parentElement!)
+    expect(await screen.findByTestId('account-remove-confirm')).toHaveTextContent(
+      i18nT('apps.awsControl.page.forget_key_confirm', { name: 'stale-key' }),
+    )
+    // The verb on the button matches the verb in the sentence.
+    expect(screen.getByTestId('account-remove-confirm-action')).toHaveTextContent(
+      i18nT('apps.awsControl.page.forget_key_action'),
+    )
   })
 })
 

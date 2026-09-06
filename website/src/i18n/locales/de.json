@@ -4936,7 +4936,15 @@
         "search_placeholder": "Konten suchen",
         "search_none": "Keine Konten stimmen mit „{{query}}“ überein.",
         "paid_services_title": "Kostenpflichtige Dienste",
-        "orphan_consent": "Bestätigt für ein AWS-Konto, das hier nicht registriert ist. Ziehen Sie die Bestätigung unten zurück, oder registrieren Sie das Konto erneut, um es auf seiner eigenen Seite zu verwalten."
+        "orphan_consent": "Bestätigt für ein AWS-Konto, das hier nicht registriert ist. Ziehen Sie die Bestätigung unten zurück, oder registrieren Sie das Konto erneut, um es auf seiner eigenen Seite zu verwalten.",
+        "account_actions": "Kontoaktionen",
+        "remove_account": "Aus AWS Control entfernen…",
+        "remove_account_action": "Entfernen",
+        "remove_account_confirm": "„{{name}}“ aus AWS Control entfernen? In AWS und in Ihrer AWS-CLI-Konfiguration ändert sich nichts.",
+        "remove_account_error": "Das Konto konnte nicht entfernt werden.",
+        "remove_account_hint": "In AWS ändert sich nichts",
+        "forget_key_confirm": "Den Schlüssel „{{name}}“ dieser Zeile vergessen? In AWS und in Ihrer AWS-CLI-Konfiguration ändert sich nichts.",
+        "forget_key_action": "Schlüssel vergessen"
       },
       "rail": {
         "accounts": "Konten & Anmeldedaten",

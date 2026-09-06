@@ -808,7 +808,7 @@ export function LibrarySection({ account, bucket }: { account: string; bucket: s
  * menu click reads as a no-op while a live destructive control sits parked out
  * of sight.
  */
-function TileConfirm({ label, error, errorSource, askAgent, pending, onCancel, onConfirm, action, testId = 'drive-grid-confirm' }: {
+export function TileConfirm({ label, error, errorSource, askAgent, pending, onCancel, onConfirm, action, testId = 'drive-grid-confirm' }: {
   /* A NODE, not a string: the library's removal names the cloud folder it will
      empty, and a bucket path belongs in a <code> chip inside the sentence rather
      than flattened into it. Every existing caller passes a string, which is a

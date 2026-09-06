@@ -22,10 +22,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Cloud, RefreshCw, ChevronDown, ChevronRight, ChevronsUpDown, Search, Check,
-  FolderClosed, Library, Archive, Share2, Users, Wallet,
+  FolderClosed, Library, Archive, Share2, Users, Wallet, MoreHorizontal, Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Btn, EmptyState, ContentSkeleton, Input } from '../../components/ui'
+import { Btn, EmptyState, ContentSkeleton, Input, IconButton } from '../../components/ui'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '../../components/ui/dropdown-menu'
@@ -39,7 +39,7 @@ import { i18nT } from '../../i18n/t'
 import { fmtBytes, fmtNumber } from '../../i18n/format'
 import { awsControlApi, AwsControlError } from './api'
 import UsagePane, { ConnectionsSection, ReconnectAction, SetupCard } from './ConsoleView'
-import { DriveSectionView, LibrarySection, BackupSection, AccessSection } from './DrivePage'
+import { DriveSectionView, LibrarySection, BackupSection, AccessSection, TileConfirm } from './DrivePage'
 import { PaneHeader, AwsErrorNotice } from './shared'
 import type { AwsAccount, AccountHealth, DriveStatus } from './types'
 
@@ -208,6 +208,15 @@ function AccountSwitcher({ accounts, selected, onSelect, onManage }: {
  * usage). An UNRESOLVED row cannot be selected (there is no account behind it),
  * so its click toggles the inline Reconnect guidance instead — a red row must
  * always offer a way back to green.
+ *
+ * Every row also carries an overflow menu whose one item removes the account
+ * from AWS Control: a registration must be reversible from the same surface
+ * that offered it, or a key added by mistake stays on the page for good.
+ * Removal is registry-only — it forgets the account's keys HERE and withdraws
+ * their paid-service consent, and changes nothing in AWS or in the operator's
+ * AWS CLI configuration — which the confirm strip states before the reader
+ * commits. The strip stays open until the request resolves because it is the
+ * only place the outcome can render.
  */
 function AccountRow({ account, current, onUse, askAgent }: {
   account: AwsAccount
@@ -219,11 +228,34 @@ function AccountRow({ account, current, onUse, askAgent }: {
   const keys = account.profiles.length
   const resolved = Boolean(account.account)
   const [showReconnect, setShowReconnect] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const qc = useQueryClient()
+  const removeM = useMutation({
+    mutationFn: () => awsControlApi.unregisterProfiles(account.profiles.map((p) => p.name)),
+    onSuccess: () => {
+      setConfirming(false)
+      // The accounts list and the Add-accounts disclosure are two views of one
+      // registry, and a withdrawn grant must leave the usage receipts too.
+      void qc.invalidateQueries({ queryKey: ['aws-control', 'accounts'] })
+      void qc.invalidateQueries({ queryKey: ['aws-control', 'profiles-available'] })
+      void qc.invalidateQueries({ queryKey: ['awsConsent'] })
+    },
+  })
+  // The unresolved pseudo-row has no account name to quote, so its confirm
+  // asks about the key it will forget, in a sentence of its own: the row reads
+  // "Not connected yet", and a confirm that suddenly named a key under the
+  // account wording would read as removing the wrong thing.
+  const confirmLabel = resolved
+    ? i18nT('apps.awsControl.page.remove_account_confirm', { name: accountName(account) })
+    : i18nT('apps.awsControl.page.forget_key_confirm', {
+      name: account.profiles.map((p) => p.name).join(', '),
+    })
   return (
     <div>
+      <div className="flex items-center pr-1">
       <button
         onClick={resolved ? onUse : () => setShowReconnect((v) => !v)}
-        className="flex w-full items-center gap-3 px-3 py-2 text-left cursor-pointer bg-transparent border-none hover:bg-bg-hover focus-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left cursor-pointer bg-transparent border-none hover:bg-bg-hover focus-ring"
         data-testid="account-card"
         data-current={current || undefined}
         aria-label={i18nT(resolved ? 'apps.awsControl.rail.use_account' : 'apps.awsControl.page.reconnect')}
@@ -267,6 +299,52 @@ function AccountRow({ account, current, onUse, askAgent }: {
           <ChevronDown size={14} className={`shrink-0 text-muted transition-transform ${showReconnect ? 'rotate-180' : ''}`} aria-hidden="true" />
         ) : null}
       </button>
+      {/* Outside the select button: a button cannot nest a button, and the
+          menu must not select the account it is about to remove. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <IconButton
+            aria-label={i18nT('apps.awsControl.page.account_actions')}
+            className="shrink-0 text-muted"
+            data-testid="account-more"
+          >
+            <MoreHorizontal size={14} />
+          </IconButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {/* The safety fact rides on the item itself: a trash-can item beside
+              an account is what a cautious first-time reader refuses to click,
+              and the strip that would have reassured them sits behind that
+              click. The ellipsis says the item asks first. */}
+          <DropdownMenuItem onSelect={() => setConfirming(true)} className="items-start" data-testid="account-remove">
+            <Trash2 size={13} className="mt-0.5 shrink-0" />
+            <span className="flex min-w-0 flex-col">
+              <span>{i18nT('apps.awsControl.page.remove_account')}</span>
+              <span className="text-[12px] text-muted" data-testid="account-remove-hint">
+                {i18nT('apps.awsControl.page.remove_account_hint')}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      </div>
+      {confirming && (
+        <div className="px-3 pb-2">
+          <TileConfirm
+            testId="account-remove-confirm"
+            label={confirmLabel}
+            action={i18nT(resolved
+              ? 'apps.awsControl.page.remove_account_action'
+              : 'apps.awsControl.page.forget_key_action')}
+            error={removeM.isError ? i18nT('apps.awsControl.page.remove_account_error') : ''}
+            errorSource={removeM.error ?? undefined}
+            askAgent={askAgent}
+            pending={removeM.isPending}
+            onCancel={() => { setConfirming(false); removeM.reset() }}
+            onConfirm={() => removeM.mutate()}
+          />
+        </div>
+      )}
       {!resolved && showReconnect && account.profiles[0] && (
         <div className="px-3 pb-2" data-testid="row-reconnect">
           <ReconnectAction profile={account.profiles[0]} askAgent={askAgent} />
