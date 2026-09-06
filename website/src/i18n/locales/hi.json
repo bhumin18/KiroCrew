@@ -4936,7 +4936,15 @@
         "search_placeholder": "खाते खोजो",
         "search_none": "“{{query}}” से मेल खाता कोई खाता नहीं है।",
         "paid_services_title": "सशुल्क सेवाएँ",
-        "orphan_consent": "यहाँ पंजीकृत नहीं किए गए AWS खाते के लिए पुष्टि की गई है। नीचे पुष्टि वापस लें, या उस खाते को फिर से पंजीकृत करके उसके पेज से प्रबंधित करें।"
+        "orphan_consent": "यहाँ पंजीकृत नहीं किए गए AWS खाते के लिए पुष्टि की गई है। नीचे पुष्टि वापस लें, या उस खाते को फिर से पंजीकृत करके उसके पेज से प्रबंधित करें।",
+        "account_actions": "खाता क्रियाएँ",
+        "remove_account": "AWS Control से हटाएँ…",
+        "remove_account_action": "हटाएँ",
+        "remove_account_confirm": "“{{name}}” को AWS Control से हटाएँ? AWS में या तुम्हारे AWS CLI कॉन्फ़िगरेशन में कुछ नहीं बदलता।",
+        "remove_account_error": "खाता हटाया नहीं जा सका।",
+        "remove_account_hint": "AWS में कुछ नहीं बदलता",
+        "forget_key_confirm": "इस पंक्ति की कुंजी “{{name}}” भुला दें? AWS में या तुम्हारे AWS CLI कॉन्फ़िगरेशन में कुछ नहीं बदलता।",
+        "forget_key_action": "कुंजी भुलाएँ"
       },
       "rail": {
         "accounts": "खाते और क्रेडेंशियल",

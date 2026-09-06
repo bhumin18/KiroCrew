@@ -46,6 +46,25 @@ registrations, and
 `test_aws_control_app.py::TestDriveGuards.test_consent_refusal_answers_409_before_any_aws_call`
 pins refusal before the drive handler calls AWS.
 
+Registration is reversible from the same surface. `POST /profiles/unregister`
+drops the named profiles from the registry and nothing else: it never reaches
+`deploy.profiles.create_aws_profile` (the module's one `aws configure` writer)
+or the AWS CLI, so the operator's AWS CLI configuration and every AWS resource
+the account holds, the drive bucket included, are untouched. Names are checked
+against the shared profile pattern but not against the machine's profile list,
+so an entry whose profile was already deleted from the CLI configuration is
+removable. Because grants are keyed by service, `aws_consent.revoke_for_profile`
+sweeps the gated services under one consent lock and withdraws every grant
+naming a removed profile, so a later re-registration under the same name starts
+unconsented; the sweep runs BEFORE the registry write, so a request that fails
+between the two leaves a registered-but-unconsented profile (the operator
+retries) rather than an unregistered profile still holding an authorization
+(`consent_unwritable` is the 500 that reports the former). The share,
+library, and backup ledgers are account-keyed and are left alone: they describe
+the bucket, which still exists and still bills, and must render unchanged when
+the key is registered again. `test_aws_control_app.py::TestProfileUnregister`
+pins the registry-only boundary, the default re-pick, and the grant sweep.
+
 AWS Control reaches AWS through deploy-engine helpers: account inspection uses
 `deploy.engine.run_aws`, while storage uses `deploy.engine._checked`. The engine
 constructs fixed AWS CLI argument vectors with a profile name and runs the CLI
@@ -398,14 +417,22 @@ resources itself.
 `routes.register_routes` exposes owner-gated reads for accounts, available
 profiles, reconnect guidance, drive status/list/download/preview/search, costs,
 library, backup status, share metadata, and rendered IAM policy. Its mutations
-are profile registration; drive bootstrap, upload, delete, move, folder
-create/delete, and share; share-ledger removal; library push and library
-removal; backup run, nightly toggle, and staged restore.
+are profile registration and unregistration; drive bootstrap, upload, delete,
+move, folder create/delete, and share; share-ledger removal; library push and
+library removal; backup run, nightly toggle, and staged restore.
 
 Drive bootstrap is the only API-level preview-plus-confirm flow. Upload, move,
 profile registration, library push, library removal, share creation, and backup
 mutations have no separate confirmation request; the dashboard separately
-confirms object deletion, folder deletion, and library removal. Library removal
+confirms object deletion, folder deletion, library removal, and account
+removal. Account removal lives in an overflow menu beside each account row on
+the Accounts pane, outside the row's select button so opening it cannot select
+the account; the menu item reveals the same inline Cancel-plus-danger strip the
+Files and Library folders use, naming the account (or, for the unresolved
+pseudo-row, the keys it will forget) and stating that nothing in AWS or in the
+AWS CLI configuration changes, and it posts every key the row holds; the menu
+item itself carries that reassurance as a muted second line, since the strip
+sits behind a click a cautious reader would otherwise refuse. Library removal
 is offered on the Library folder's own listing — one overflow menu per listed
 cloud copy, in both the grid and the list view, the same `⋮` shape the Files
 folder's cards and rows use — and never on the "Add from Artifacts" picker. That

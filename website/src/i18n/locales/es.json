@@ -5022,7 +5022,15 @@
         "keys_summary_many": "{{count}} claves",
         "add_accounts_count_many": "{{count}} de {{max}} registrados",
         "paid_services_title": "Servicios de pago",
-        "orphan_consent": "Confirmado para una cuenta de AWS que no está registrada aquí. Retira la confirmación abajo, o vuelve a registrar esa cuenta para gestionarla desde su propia página."
+        "orphan_consent": "Confirmado para una cuenta de AWS que no está registrada aquí. Retira la confirmación abajo, o vuelve a registrar esa cuenta para gestionarla desde su propia página.",
+        "account_actions": "Acciones de la cuenta",
+        "remove_account": "Quitar de AWS Control…",
+        "remove_account_action": "Quitar",
+        "remove_account_confirm": "¿Quitar “{{name}}” de AWS Control? Nada cambia en AWS ni en tu configuración de la CLI de AWS.",
+        "remove_account_error": "No se pudo quitar la cuenta.",
+        "remove_account_hint": "Nada cambia en AWS",
+        "forget_key_confirm": "¿Olvidar la clave “{{name}}” de esta fila? Nada cambia en AWS ni en tu configuración de la CLI de AWS.",
+        "forget_key_action": "Olvidar clave"
       },
       "rail": {
         "accounts": "Cuentas y credenciales",

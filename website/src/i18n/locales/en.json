@@ -3819,7 +3819,15 @@
         "search_placeholder": "Search accounts",
         "search_none": "No accounts match “{{query}}”.",
         "paid_services_title": "Paid services",
-        "orphan_consent": "Confirmed for an AWS account that is not registered here. Withdraw it below, or register that account again to manage it from its own page."
+        "orphan_consent": "Confirmed for an AWS account that is not registered here. Withdraw it below, or register that account again to manage it from its own page.",
+        "account_actions": "Account actions",
+        "remove_account": "Remove from AWS Control…",
+        "remove_account_action": "Remove",
+        "remove_account_confirm": "Remove “{{name}}” from AWS Control? Nothing in AWS or in your AWS CLI configuration changes.",
+        "remove_account_error": "The account could not be removed.",
+        "remove_account_hint": "Nothing in AWS changes",
+        "forget_key_confirm": "Forget this row’s key “{{name}}”? Nothing in AWS or in your AWS CLI configuration changes.",
+        "forget_key_action": "Forget key"
       },
       "rail": {
         "accounts": "Accounts & credentials",

@@ -4850,7 +4850,15 @@
         "search_placeholder": "アカウントを検索",
         "search_none": "「{{query}}」に一致するアカウントはありません。",
         "paid_services_title": "有料サービス",
-        "orphan_consent": "ここに登録されていない AWS アカウントに対して確認済みです。下で確認を取り消すか、そのアカウントを再登録して専用ページから管理してください。"
+        "orphan_consent": "ここに登録されていない AWS アカウントに対して確認済みです。下で確認を取り消すか、そのアカウントを再登録して専用ページから管理してください。",
+        "account_actions": "アカウントの操作",
+        "remove_account": "AWS Control から削除…",
+        "remove_account_action": "削除",
+        "remove_account_confirm": "「{{name}}」を AWS Control から削除しますか？AWS や AWS CLI の設定は何も変わりません。",
+        "remove_account_error": "アカウントを削除できませんでした。",
+        "remove_account_hint": "AWS 側は何も変わりません",
+        "forget_key_confirm": "この行のキー「{{name}}」を忘れますか？AWS や AWS CLI の設定は何も変わりません。",
+        "forget_key_action": "キーを忘れる"
       },
       "rail": {
         "accounts": "アカウントと認証情報",

@@ -4850,7 +4850,15 @@
         "search_placeholder": "搜索账户",
         "search_none": "没有匹配“{{query}}”的账户。",
         "paid_services_title": "付费服务",
-        "orphan_consent": "已为一个未在此注册的 AWS 账号确认。可在下方撤回确认，或重新注册该账号以在它自己的页面上管理。"
+        "orphan_consent": "已为一个未在此注册的 AWS 账号确认。可在下方撤回确认，或重新注册该账号以在它自己的页面上管理。",
+        "account_actions": "账户操作",
+        "remove_account": "从 AWS Control 移除…",
+        "remove_account_action": "移除",
+        "remove_account_confirm": "从 AWS Control 移除“{{name}}”？AWS 和你的 AWS CLI 配置不会有任何改动。",
+        "remove_account_error": "无法移除该账户。",
+        "remove_account_hint": "AWS 中不会有任何改动",
+        "forget_key_confirm": "忘记这一行的密钥“{{name}}”？AWS 和你的 AWS CLI 配置不会有任何改动。",
+        "forget_key_action": "忘记密钥"
       },
       "rail": {
         "accounts": "账户与凭证",
