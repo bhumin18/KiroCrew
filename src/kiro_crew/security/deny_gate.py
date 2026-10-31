@@ -34,6 +34,7 @@ from kiro_crew.executors import maintenance_executor
 from kiro_crew.security import _submodule, logger
 from kiro_crew.sel import SecurityEvent, SecurityEventLog
 
+from .shell_commands import sharing_views
 from .text_redaction import redact_and_truncate
 
 if TYPE_CHECKING:
@@ -273,6 +274,8 @@ def _deny_segment_views(segment: str, emit_self: bool = True) -> tuple[str, ...]
             payloads = _shell_normalizer._nested_shell_payloads(
                 tokens, allow_join=allow_join, joined_out=joined_here
             )
+            # A redirect before the ``-c`` operand hides the script from the payloads.
+            payloads = [*payloads, *_submodule("shell_commands").redirect_hidden_payloads(source)]
             programs = _shell_normalizer._argv_programs(tokens) if payloads else []
             # Both values below read ONLY ``tokens``, which is fixed for this
             # whole walk, so they are charged ONCE here instead of once per
@@ -416,6 +419,7 @@ def _inline_interpreter_bindings(text: str) -> str:
     return _INTERP_IDENT_RE.sub(lambda m: bindings.get(m.group(0), m.group(0)), text)
 
 
+@sharing_views
 def is_denied(
     tool_name: str,
     extra_patterns: list[str] | None = None,
@@ -538,11 +542,13 @@ def is_denied(
 
     glob_patterns = list(extra_patterns or [])
     if denied_regexes is None:
-        regex_patterns = _rules.compute_effective_denied(
+        denied_regexes = _rules.compute_effective_denied(
             _rules.BUILTIN_DENIED_RULES, (), False, (), ()
         )
-    else:
-        regex_patterns = list(denied_regexes)
+    # Which entries are shipped-only, as the resolver recorded it. A list that
+    # did not come from ``compute_effective_denied`` carries none and narrows none.
+    shipped: frozenset[str] = getattr(denied_regexes, "shipped", frozenset())
+    regex_patterns = list(denied_regexes)
     # Capture which git-publish rules are still ENABLED *before* the strip below
     # removes their patterns from the regex tier. Computing this afterwards would
     # always yield the empty set and the floor would never fire — a silent, total
@@ -757,7 +763,7 @@ def is_denied(
             )
 
     # ── Pattern passes (shared with the synthesized tier's ``segments=True``) ──
-    pattern_denial = _deny_pattern_passes(tool_name, lower, all_patterns, _reason)
+    pattern_denial = _deny_pattern_passes(tool_name, lower, all_patterns, _reason, shipped)
     if pattern_denial is not None:
         return pattern_denial
     # ── Recursive-force rm floor (argv-structural, UNION with the regex) ──
@@ -773,7 +779,7 @@ def is_denied(
     if rm_enabled and _rm._can_fire(tool_name):
         note = _rm._RM_FLOOR_NOTE
         try:
-            rm_targets = _rm._rm_wipe_targets(tool_name)
+            rm_targets = _rm._rm_wipe_targets_nested(tool_name)
         except Exception as exc:  # incl. RecursionError
             # Fail closed for a command naming rm as a word; letters inside
             # another word (``--format``) are not a command the floor reads.
@@ -809,10 +815,12 @@ def _deny_pattern_passes(
     lower: str,
     all_patterns: list[tuple[str, bool]],
     reason: "Callable[[str], str]",
+    shipped: frozenset[str] = frozenset(),
 ) -> str | None:
     """Run :func:`is_denied`'s whole-string and per-segment passes over *all_patterns*.
 
     Exceptions and the perm-verb narrowing apply as there; no floor runs here.
+    *shipped* gates the s3 download narrowing to shipped-only patterns.
     """
     _rules = _submodule("denied_rules")
     _shell = _submodule("shell_normalizer")
@@ -837,7 +845,7 @@ def _deny_pattern_passes(
                 lower, _rules._DENY_EXCEPTIONS.get(pattern, [])
             )
             if not whole_string_exception_match and _perm_verb_mention_narrows(
-                pattern, lower, mention_cache
+                pattern, lower, mention_cache, tool_name, shipped
             ):
                 # Same shape as the glob exception above: a whole-string carve-out
                 # only DEFERS to Pass 2, which re-judges each segment on its own,
@@ -845,7 +853,9 @@ def _deny_pattern_passes(
                 # is emitted here (and GATES the carve-out) because for a search
                 # whose verb and path land in different segments Pass 2 never
                 # matches, so this is the only place the decision is recorded.
-                if _emit_deny_exception_event(tool_name, pattern, _PERM_VERB_MENTION_MECHANISM):
+                if _emit_deny_exception_event(
+                    tool_name, pattern, _perm_verb_mechanism_for(pattern)
+                ):
                     whole_string_exception_match = True
             if not whole_string_exception_match:
                 _emit_deny_event(tool_name, pattern, lower)
@@ -906,7 +916,9 @@ def _deny_pattern_passes(
                 if _rules._deny_pattern_matches(pattern, view, is_regex):
                     if _rules._exception_applies(
                         view, _rules._DENY_EXCEPTIONS.get(pattern, [])
-                    ) or _perm_verb_mention_narrows(pattern, lower, mention_cache):
+                    ) or _perm_verb_mention_narrows(
+                        pattern, lower, mention_cache, tool_name, shipped
+                    ):
                         # ``lower``, not ``view``: the mention reading is a
                         # WHOLE-COMMAND judgement and a Pass 2 segment is not
                         # always a command.  ``_split_segments`` is deliberately
@@ -1130,6 +1142,8 @@ def _perm_verb_mechanism_for(pattern: str) -> str:
     """
     if pattern in _submodule("denied_rules")._PERM_VERB_MENTION_PATTERNS:
         return _PERM_VERB_MENTION_MECHANISM
+    if pattern in _submodule("s3_direction")._S3_TRANSFER_PATTERNS:
+        return "_S3_DOWNLOAD"
     return "_DENY_EXCEPTIONS"
 
 
@@ -1137,6 +1151,8 @@ def _perm_verb_mention_narrows(
     pattern: str,
     view: str,
     cache: dict[str, bool],
+    raw: str = "",
+    shipped: frozenset[str] = frozenset(),
 ) -> bool:
     """Whether *pattern* is narrowed away on *view* by an inert-mention reading.
 
@@ -1150,7 +1166,25 @@ def _perm_verb_mention_narrows(
     touching any rule outside the derived set.  The set's size is deliberately
     not written down here: it is derived from the catalog, so a count in prose
     goes stale the next time a row is added or renamed.
+
+    The three ``aws s3 cp|mv|sync`` rows narrow the same way on a different
+    reading: :func:`~.s3_direction._s3_download_only`, true only for one plain
+    download command it read in full, so a command it cannot read stays denied.
+    It also gets *raw*, the command before case folding, to refuse any non-ASCII,
+    and narrows only a pattern in *shipped*, so an operator's own copy stays denied.
     """
+    s3 = _submodule("s3_direction")
+    if pattern in s3._S3_TRANSFER_PATTERNS:
+        if pattern not in shipped:
+            return False
+        # Its own key: the reader's verdict is not the mention walk's, and every
+        # matching segment would otherwise re-read the whole command.
+        key = f"\0s3\0{view}\0{raw}"
+        s3_verdict = cache.get(key)
+        if s3_verdict is None:
+            s3_verdict = s3._s3_download_only(view, raw)
+            cache[key] = s3_verdict
+        return s3_verdict
     if pattern not in _submodule("denied_rules")._PERM_VERB_MENTION_PATTERNS:
         return False
     verdict = cache.get(view)
